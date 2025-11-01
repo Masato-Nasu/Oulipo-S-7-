@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  \1  <meta name="theme-color" content="#111111">
+  <link rel="manifest" href="manifest.json">
+<link rel="icon" href="assets/icon-192.png">
+  <style>
+    :root{--bg:#fafafa;--fg:#111;--muted:#666;--accent:#111;--border:#e5e5e5}
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 system-ui,-apple-system,Segoe UI,Meiryo,sans-serif}
+    header{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--border);padding:10px 16px;display:flex;gap:12px;align-items:center;z-index:10}
+    h1{font-size:16px;margin:0}
+    main{padding:16px;max-width:1040px;margin:0 auto;display:grid;gap:16px}
+    section.card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px}
+    label{font-weight:600;display:block;margin-bottom:6px}
+    textarea,input,button,select{font:inherit}
+    textarea{width:100%;min-height:200px;border:1px solid var(--border);border-radius:12px;padding:10px;background:#fff}
+    input[type="number"],input[type="file"],select{width:100%;border:1px solid var(--border);border-radius:12px;padding:10px;background:#fff}
+    .grid{display:grid;gap:12px}
+    .cols-2{grid-template-columns:1fr 1fr}
+    .cols-3{grid-template-columns:1fr 1fr 1fr}
+    .cols-4{grid-template-columns:1fr 1fr 1fr 1fr}
+    @media (max-width: 980px){.cols-2,.cols-3,.cols-4{grid-template-columns:1fr}}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    button{background:var(--accent);color:#fff;border:0;border-radius:12px;padding:10px 14px;cursor:pointer}
+    button.secondary{background:#eee;color:#111}
+    .hint{color:var(--muted);font-size:12px}
+    .small{font-size:12px;color:#555}
+    .badge{position:fixed;right:10px;bottom:10px;background:#111;color:#fff;border-radius:14px;padding:6px 10px;font-size:12px;opacity:.9}
+    .pill{display:inline-block;border:1px solid var(--border);border-radius:999px;padding:6px 10px;font-size:12px}
+  </style>
+</head>
+<body>
+<header>
+  <img src="assets/icon-192.png" width="24" height="24" style="border-radius:6px" alt="">
+  <h1>辞書シフト置換（S+7 / M±n 対応） v1.1.3</h1>
+  <div style="margin-left:auto" id="status" class="small"></div>
+</header>
+
+<main>
+  <section class="card grid cols-4">
+    <div>
+      <label>シフト K（S+K / M±K）</label>
+      <input id="key" type="number" value="7" step="1" inputmode="numeric">
+      <div class="hint">例：S+7 → K=7、M−5 → K=-5</div>
+    </div>
+    <div>
+      <label>辞書ファイル</label>
+      <div class="row">
+        <input id="dictfile" type="file" accept=".txt,.csv,.tsv">
+        <button id="btn-clear" class="secondary">解除</button>
+      </div>
+      <div class="hint">TXT=1語/行。CSV/TSV=「語,品詞」でもOK（自動判定）。</div>
+    </div>
+    <div>
+      <label>一致方式</label>
+      <select id="match">
+        <option value="longest" selected>最長一致（日本語）</option>
+        <option value="token">トークン一致（欧文）</option>
+      </select>
+      <div class="hint">日本語は最長一致推奨（分かち書き不要）。</div>
+    </div>
+    <div>
+      <label>置換対象（品詞フィルタ）</label>
+      <div class="row">
+        <label class="pill"><input id="pos-n" type="checkbox" checked> 名詞</label>
+        <label class="pill"><input id="pos-v" type="checkbox"> 動詞</label>
+        <label class="pill"><input id="pos-a" type="checkbox"> 形容詞</label>
+        <label class="pill"><input id="pos-adv" type="checkbox"> 副詞</label>
+      </div>
+      <div class="hint">S+7は名詞のみONが典型。M±nは広くON。</div>
+    </div>
+  </section>
+
+  <section class="card grid cols-2">
+    <div>
+      <label>平文</label>
+      <textarea id="plain" placeholder="ここに本文を貼ってください"></textarea>
+      <div class="small">関数語（助詞・助動詞・前置詞・冠詞など）は既定で除外します。</div>
+    </div>
+    <div>
+      <label>結果</label>
+      <textarea id="out" placeholder="ここに結果が出ます" readonly></textarea>
+      <div class="row" style="margin-top:10px">
+        <button id="btn-enc">暗号化（+K）</button>
+        <button id="btn-dec" class="secondary">復号（-K）</button>
+        <button id="btn-self" class="secondary">自己テスト</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <details>
+      <summary><strong>使い方 / 原理</strong></summary>
+      <ol>
+        <li>辞書は TXT（1語/行）または CSV/TSV（<code>語,品詞</code>）を読み込めます。</li>
+        <li>本文から一致語を見つけ、品詞フィルタに合致する語だけ、辞書順で <code>(index+K) mod N</code> へ置換。</li>
+        <li>CSV/TSV に品詞がない場合は、簡易ルールで推定（例：かな→名詞寄り／英語→名詞寄り）。</li>
+        <li>S+7は「名詞のみON」、M±nは置換対象を広げるのが基本です。</li>
+      </ol>
+      <p class="small">※既成辞典のデータや順序は著作物です。個人利用の範囲でも各ライセンスをご確認ください。</p>
+    </details>
+  </section>
+</main>
+
+<div class="badge">dict-shift v1.1.3-pwa2（PWA）</div>
+<script>
+(() => {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const statusEl = $('#status');
+  const keyEl = $('#key');
+  const dictFileEl = $('#dictfile');
+  const btnClear = $('#btn-clear');
+  const modeEl = $('#match');
+  const plainEl = $('#plain');
+  const outEl = $('#out');
+
+  const ckN = $('#pos-n');
+  const ckV = $('#pos-v');
+  const ckA = $('#pos-a');
+  const ckAdv = $('#pos-adv');
+
+  function setStatus(msg, ms=3000){
+    statusEl.textContent = msg;
+    if (ms) setTimeout(()=>statusEl.textContent='', ms);
+  }
+  function norm(s){
+    try{ return s.normalize('NFKC'); }catch(e){ return s; }
+  }
+
+  // 辞書データ構造
+  let dictAll = [];        // [{w,pos}]
+  let dictByPos = {N:[], V:[], A:[], ADV:[]};
+  let idxAll = new Map();  // w->index in dictAll
+  let idxByPos = {N:new Map(), V:new Map(), A:new Map(), ADV:new Map()};
+
+  // 先頭文字バケット（各POSごと）
+  let bucketsByPos = {N:new Map(), V:new Map(), A:new Map(), ADV:new Map()};
+
+  const FUNC_WORDS = new Set([
+    'の','に','を','は','が','へ','と','で','や','も','から','まで','より','な','だ','です','ます','た','ない','なかった','そして',
+    'the','a','an','to','of','in','on','at','for','by','and','or','but','with','as','that','this','these','those','is','are','was','were','be','been','being'
+  ]);
+
+  function guessPOS(word){
+    if (FUNC_WORDS.has(word)) return 'FUNC';
+    if (/^[\p{P}\p{S}\s]+$/u.test(word)) return 'FUNC';
+    if (/^[A-Za-z]+$/.test(word)) return 'N';
+    if (/^[0-9]+$/.test(word)) return 'FUNC';
+    if (/^[\u30A0-\u30FFー]+$/.test(word)) return 'N';
+    if (/^[\u3040-\u309F]+$/.test(word) && word.length<=2) return 'FUNC';
+    return 'N';
+  }
+
+  function addToBucket(bmap, w){
+    const c = w[0];
+    if (!bmap.has(c)) bmap.set(c, []);
+    bmap.get(c).push(w);
+  }
+  function sortBuckets(bmap){
+    for (const arr of bmap.values()){ arr.sort((a,b)=>b.length - a.length); }
+  }
+
+  async function loadDict(file){
+    const text = await file.text();
+    const lines = text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+    const isCSV = !!(lines[0] && (lines[0].includes(',') || lines[0].includes('\t') || lines[0].includes(';') || lines[0].includes('|')));
+
+    dictAll = [];
+    dictByPos = {N:[], V:[], A:[], ADV:[]};
+
+    if (!isCSV){
+      const seen = new Set();
+      for (const w of lines){
+        if (seen.has(w)) continue;
+        seen.add(w);
+        const pos = guessPOS(w);
+        if (pos==='FUNC') continue;
+        dictAll.push({w,pos});
+        dictByPos[pos].push(w);
+      }
+    }else{
+      // delimiter detect (comma / tab / semicolon / pipe)
+      const sample = lines.slice(0,50).join('\n');
+      const counts = {',': (sample.match(/,/g)||[]).length,
+                      '\t': (sample.match(/\t/g)||[]).length,
+                      ';': (sample.match(/;/g)||[]).length,
+                      '|': (sample.match(/\|/g)||[]).length};
+      let delim = ',';
+      let max = -1;
+      for (const k in counts){ if (counts[k] > max){ max = counts[k]; delim = k; } }
+      const seen = new Set();
+      for (const line of lines){
+        const parts = (delim === '\t') ? line.split('\t') : line.split(delim);
+        const w = (parts[0] || '').trim();
+        let pos = (parts[1] || '').trim().toUpperCase();
+        if (!w || seen.has(w)) continue;
+        seen.add(w);
+        if (!pos){
+          pos = guessPOS(w);
+        }else{
+          if (/^N(N|OUN)?$/.test(pos)) pos='N';
+          else if (/^V(ERB)?$/.test(pos)) pos='V';
+          else if (/^ADJ(ECTIVE)?$/.test(pos) || pos==='形容詞') pos='A';
+          else if (/^ADV(ERB)?$/.test(pos) || pos==='副詞') pos='ADV';
+          else if (pos==='FUNC' || pos==='助詞' || pos==='助動詞') continue;
+          else pos = guessPOS(w);
+        }
+        if (pos==='FUNC') continue;
+        dictAll.push({w,pos});
+        dictByPos[pos].push(w);
+      }
+    }
+
+    // build indexes/buckets
+    idxAll = new Map(dictAll.map((o,i)=>[o.w,i]));
+    idxByPos = {N:new Map(), V:new Map(), A:new Map(), ADV:new Map()};
+    bucketsByPos = {N:new Map(), V:new Map(), A:new Map(), ADV:new Map()};
+
+    for (const pos of ['N','V','A','ADV']){
+      const arr = dictByPos[pos];
+      arr.forEach((w,i)=> idxByPos[pos].set(w,i));
+      for (const w of arr) addToBucket(bucketsByPos[pos], w);
+      sortBuckets(bucketsByPos[pos]);
+    }
+
+    setStatus(`辞書読み込み：${dictAll.length} 語（N:${dictByPos.N.length} / V:${dictByPos.V.length} / A:${dictByPos.A.length} / ADV:${dictByPos.ADV.length})`);
+  }
+
+  function shiftIndex(i, k, n){
+    const j = ((i + k) % n + n) % n;
+    return j;
+  }
+
+  function posEnabled(pos){
+    if (pos==='N') return ckN.checked;
+    if (pos==='V') return ckV.checked;
+    if (pos==='A') return ckA.checked;
+    if (pos==='ADV') return ckAdv.checked;
+    return false;
+  }
+
+  // 単一POSで最長一致置換
+  function replaceLongestPOS(input, k, pos){
+    const list = dictByPos[pos];
+    if (!list.length) return input;
+    const idxMap = idxByPos[pos];
+    const buckets = bucketsByPos[pos];
+    const s = input;
+    let i = 0;
+    let out = '';
+    while (i < s.length){
+      const c = s[i];
+      const cand = buckets.get(c);
+      let matched = null;
+      if (cand){
+        for (const w of cand){
+          if (s.startsWith(w, i)){ matched = w; break; }
+        }
+      }
+      if (matched){
+        const idx = idxMap.get(matched);
+        const j = shiftIndex(idx, k, list.length);
+        out += list[j];
+        i += matched.length;
+      }else{
+        out += s[i];
+        i += 1;
+      }
+    }
+    return out;
+  }
+
+  // 選択POSを順に適用（文字列を更新しながら）
+  function transformLongest(input, k){
+    let s = norm(input);
+    for (const pos of ['N','V','A','ADV']){
+      if (posEnabled(pos)){
+        s = replaceLongestPOS(s, k, pos);
+      }
+    }
+    return s;
+  }
+
+  // 欧文向け：トークン一致（空白・記号を保存）
+  function transformToken(input, k){
+    let s = norm(input);
+    const parts = s.split(/(\p{L}+|\p{N}+)/u);
+    for (let i=0;i<parts.length;i++){
+      const tok = parts[i];
+      if (!tok) continue;
+      if (/^(\p{L}+|\p{N}+)$ /u.test(tok)){
+        let pos = null;
+        const idx = idxAll.get(tok);
+        if (idx != null){
+          pos = dictAll[idx].pos;
+        }
+        if (!pos || posEnabled(pos)){
+          if (idx != null){
+            const j = shiftIndex(idx, k, dictAll.length);
+            parts[i] = dictAll[j].w;
+          }
+        }
+      }
+    }
+    return parts.join('');
+  }
+
+  function run(sign){
+    const K = parseInt(keyEl.value||'0',10) * sign;
+    const src = plainEl.value||'';
+    if (!dictAll.length){ setStatus('先に辞書を読み込んでください'); outEl.value = src; return; }
+    outEl.value = (modeEl.value==='longest') ? transformLongest(src, K) : transformToken(src, K);
+  }
+
+  // events
+  $('#btn-enc').addEventListener('click', ()=>run(+1));
+  $('#btn-dec').addEventListener('click', ()=>run(-1));
+  $('#btn-self').addEventListener('click', ()=>{
+    plainEl.value = '私は喫茶店でコーヒーを飲みながら新聞を読んだ。';
+    setStatus('自己テスト文を投入しました。辞書とKを設定し、名詞のみONでS+7を試せます。');
+  });
+  dictFileEl.addEventListener('change', async (ev)=>{
+    const f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    try{ await loadDict(f); }catch(e){ console.error(e); setStatus('辞書読み込みに失敗しました'); }
+  });
+  btnClear.addEventListener('click', ()=>{
+    dictAll=[]; dictByPos={N:[],V:[],A:[],ADV:[]}; idxAll=new Map(); idxByPos={N:new Map(),V:new Map(),A:new Map(),ADV:new Map()};
+    bucketsByPos={N:new Map(),V:new Map(),A:new Map(),ADV:new Map()};
+    dictFileEl.value=''; setStatus('辞書を解除しました');
+  });
+})();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js?ver=1.1.3-pwa2')
+      .then(reg => console.log('SW registered', reg.scope))
+      .catch(err => console.error('SW registration failed', err));
+  });
+}
+</script>
+
+</body>
+</html>
