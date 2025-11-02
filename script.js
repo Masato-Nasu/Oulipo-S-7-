@@ -1,116 +1,109 @@
+
 (()=>{
 const keyEl = document.getElementById('key');
 const srcEl = document.getElementById('src');
 const dstEl = document.getElementById('dst');
 const stat  = document.getElementById('stat');
-const learnToggle = document.getElementById('learnToggle');
-learnToggle.checked = false; // 既定：未知語は置換しない
+const unknownKeepEl = document.getElementById('unknownKeep');
 
-// ===== 埋め込み辞書（base64, 1行1語） =====
-let EMBED_DICT = '';
-try{
-  const bin = atob(window.__DICT_B64__||'');
-  EMBED_DICT = new TextDecoder('utf-8',{fatal:false}).decode(Uint8Array.from(bin, c=>c.charCodeAt(0)));
-}catch(e){
-  console.error('dict decode failed', e);
-  EMBED_DICT = "私\n宇宙\n作品\n読む\n新聞\n喫茶店\nコーヒー\n飲む\n合歓木\n三途\n在りて\n終日";
+// decode dict
+let DICT_TXT = "";
+try {
+  const bin = atob(window.__DICT_B64__||"");
+  DICT_TXT = new TextDecoder('utf-8',{fatal:false}).decode(Uint8Array.from(bin, c=>c.charCodeAt(0)));
+} catch(e) {
+  console.error(e);
+  DICT_TXT = "宇宙\n缶詰\n作品\n世界\n時間\n空間\n存在\n読む\n書く\n考える";
 }
 
 const nkfc = s => { try { return s.normalize('NFKC'); } catch { return s; } };
 
-let dictRaw=[], dict=[], indexObj=Object.create(null), ready=false;
+// Build dict (unique, sorted)
+let dict = Array.from(new Set(DICT_TXT.split(/\r?\n/).map(s=>nkfc((s||"").trim())).filter(Boolean))).sort();
+let rawIndex = Object.create(null);
+for (let i=0;i<dict.length;i++) rawIndex[dict[i]] = i;
 
-function buildSync(text){
-  const t0 = performance.now();
-  const lines = (text||'').split(/\r?\n/);
-  const seen = new Set();
-  dictRaw.length = 0; dict.length = 0; indexObj = Object.create(null);
-  for(const raw of lines){
-    const w = (raw||'').trim(); if(!w) continue;
-    const n = nkfc(w);
-    if(seen.has(n)) continue;
-    seen.add(n);
-    dictRaw.push(w);
-    dict.push(n);
-  }
-  for(let i=0;i<dict.length;i++){ if(indexObj[dict[i]]===undefined) indexObj[dict[i]]=i; }
-  ready = true;
-  const t1 = performance.now();
-  stat.textContent = `辞書読み込み完了：${dict.length.toLocaleString()}語（埋め込み/b64/同期, ${Math.round(t1-t0)}ms）`;
-}
-buildSync(EMBED_DICT);
+// Common particles/auxiliaries to keep as-is (approximate)
+const KEEP_SET = new Set([
+  "は","が","を","に","へ","で","と","の","や","も","から","まで","より",
+  "ね","よ","ぞ","ぜ","か","な","だ","です","ます","でした","だった",
+  "する","した","して","している","していた","できる","できない",
+  "ある","ない","いる","いない","でした","でしょう","だった",
+  "そして","また","しかし","など","この","その","あの","という","というのは","ということ",
+  "。","、","，","．","！","？","「","」","『","』","（","）","(",")","[","]","…","—","-",":","・"
+]);
 
-// 最長一致トークナイズ（辞書優先）
-function tokenizeByDictMaxMatch(s){
-  const MAXLEN = 24;
-  const out=[]; let i=0, N=s.length;
+// Tokenize: longest dict match; otherwise group into Japanese/run/latin/number/punct
+function tokenizeLongest(s){
+  const N = s.length;
+  let i=0;
+  const out=[];
+  const isSpace = c => /\s/.test(c);
+  const isPunct = c => /[。、，．！？「」『』（）()［］\[\]…—\-:・]/.test(c);
+  const jRe = /[ぁ-んァ-ヶｦ-ﾟー一-龯々〆ヵヶ]/;
+
   while(i<N){
-    const ch=s[i];
-    if(/\s/.test(ch)){ out.push(ch); i++; continue; }
-    let matched=null, mlen=0;
-    const limit=Math.min(N,i+MAXLEN);
-    for(let j=limit;j>i;j--){
-      const piece=s.slice(i,j);
-      if(indexObj[nkfc(piece)]!==undefined){ matched=piece; mlen=j-i; break; }
+    const ch = s[i];
+    if (isSpace(ch)) { out.push(ch); i++; continue; }
+    if (isPunct(ch)) { out.push(ch); i++; continue; }
+
+    // try longest dict match up to 20 chars ahead
+    let best=null, blen=0;
+    const lim = Math.min(N, i+20);
+    for (let j=lim; j>i; j--){
+      const piece = s.slice(i,j);
+      const key = nkfc(piece);
+      if (rawIndex[key]!==undefined){ best=piece; blen=j-i; break; }
     }
-    if(matched){ out.push(matched); i+=mlen; continue; }
-    // 未知語は「まとめてそのまま」扱いにする（可読性優先）
-    const m = s.slice(i).match(/^([ぁ-んァ-ヶｦ-ﾟー一-龯々〆ヵヶ]+|[A-Za-z]+|[0-9]+)/);
-    if(m){ out.push(m[1]); i+=m[1].length; }
-    else { out.push(s[i]); i++; }
+    if (best){ out.push(best); i+=blen; continue; }
+
+    // otherwise group by script
+    if (jRe.test(ch)){
+      const m = s.slice(i).match(/^([ぁ-んァ-ヶｦ-ﾟー一-龯々〆ヵヶ]+)/);
+      out.push(m[1]); i+=m[1].length; continue;
+    }
+    const m2 = s.slice(i).match(/^([A-Za-z]+)/);
+    if (m2){ out.push(m2[1]); i+=m2[1].length; continue; }
+    const m3 = s.slice(i).match(/^([0-9]+)/);
+    if (m3){ out.push(m3[1]); i+=m3[1].length; continue; }
+
+    out.push(ch); i++;
   }
   return out;
 }
 
-// 未知語学習（オプション）
-function learnUnknownTokens(tokens){
-  if(!learnToggle.checked) return 0;
-  let added=0;
-  for(const tok of tokens){
-    const key = nkfc(tok);
-    if(indexObj[key]===undefined && /\S/.test(tok)){
-      indexObj[key] = dict.length;
-      dict.push(key);
-      dictRaw.push(tok);
-      added++;
-    }
-  }
-  return added;
-}
-
-// シフト
-function shift(text,k){
-  if(!ready) return text;
-  const toks = tokenizeByDictMaxMatch(text);
-  const added = learnUnknownTokens(toks.filter(t=>!/\s/.test(t)));
+// shift function
+function shiftTokens(tokens, k, unknownKeep=true){
   const n = dict.length;
-  const km = ((k%n)+n)%n;
+  const km = ((k % n) + n) % n;
   let hit=0;
-  const out = toks.map(tok=>{
-    if(/\s/.test(tok)) return tok;        // 空白などはそのまま
-    const id = indexObj[nkfc(tok)];
-    if(id!==undefined){ hit++; return dictRaw[(id+km)%n]; }
-    return tok;                            // 未知語はそのまま（既定）
-  }).join('');
-  stat.textContent = `match ${hit}/${toks.length} tokens | dict=${n}${learnToggle.checked?'' : ' | 未知語はそのまま'}`;
-  return out;
+  const out = tokens.map(t => {
+    if (KEEP_SET.has(t)) return t;
+    const key = nkfc(t);
+    const id = rawIndex[key];
+    if (id!==undefined){
+      hit++;
+      return dict[(id + km) % n];
+    }
+    // unknown
+    return unknownKeep ? t : t; // default keep
+  });
+  stat.textContent = `hit ${hit}/${tokens.length} | dict=${n} | keep=${unknownKeep}`;
+  return out.join("");
 }
-function shiftReverse(text,k){ return shift(text,-k); }
 
-// UI
-document.getElementById('shiftBtn').addEventListener('click',()=>{
+function doShift(sign){
   const k = parseInt(keyEl.value,10)||0;
-  dstEl.value = shift(srcEl.value||'', k);
-});
-document.getElementById('revBtn').addEventListener('click',()=>{
-  const k = parseInt(keyEl.value,10)||0;
-  dstEl.value = shiftReverse(srcEl.value||'', k);
-});
-document.getElementById('sampleBtn')?.addEventListener('click',()=>{
-  srcEl.value = '私は喫茶店でコーヒーを飲みながら新聞を読んだ。合歓木の　在りて終日　三途にて。';
-});
+  const text = srcEl.value || "";
+  const toks = tokenizeLongest(text);
+  const unknownKeep = !!unknownKeepEl.checked;
+  dstEl.value = shiftTokens(toks, sign>0?k:-k, unknownKeep);
+}
 
-// PWA
-try{ if('serviceWorker' in navigator) navigator.serviceWorker.register('serviceWorker.js'); }catch{}
+document.getElementById('shiftBtn').addEventListener('click', ()=>doShift(+1));
+document.getElementById('revBtn').addEventListener('click', ()=>doShift(-1));
 
-})();
+// PWA (best-effort)
+try{ if ('serviceWorker' in navigator) navigator.serviceWorker.register('serviceWorker.js'); }catch{}
+
+})(); 
