@@ -1,5 +1,5 @@
 {
-  "name": "Oulipo S+K — Single-File Dict PWA",
+  "name": "Oulipo S+K — Single-File Dict PWA (NoWorker)",
   "short_name": "Oulipo",
   "start_url": "./",
   "display": "standalone",
