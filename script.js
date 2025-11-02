@@ -3,15 +3,13 @@ const keyEl = document.getElementById('key');
 const srcEl = document.getElementById('src');
 const dstEl = document.getElementById('dst');
 const stat  = document.getElementById('stat');
-const toast = document.getElementById('toast');
-
-function show(msg){ toast.textContent = msg; toast.style.display='block'; setTimeout(()=>toast.style.display='none', 1800); }
+const learnToggle = document.getElementById('learnToggle');
+learnToggle.checked = false; // 既定：未知語は置換しない
 
 // ===== 埋め込み辞書（base64, 1行1語） =====
 let EMBED_DICT = '';
 try{
   const bin = atob(window.__DICT_B64__||'');
-  // decode as UTF-8
   EMBED_DICT = new TextDecoder('utf-8',{fatal:false}).decode(Uint8Array.from(bin, c=>c.charCodeAt(0)));
 }catch(e){
   console.error('dict decode failed', e);
@@ -22,7 +20,6 @@ const nkfc = s => { try { return s.normalize('NFKC'); } catch { return s; } };
 
 let dictRaw=[], dict=[], indexObj=Object.create(null), ready=false;
 
-// 同期ビルド（ローカルfile://でも必ず動く）
 function buildSync(text){
   const t0 = performance.now();
   const lines = (text||'').split(/\r?\n/);
@@ -57,6 +54,7 @@ function tokenizeByDictMaxMatch(s){
       if(indexObj[nkfc(piece)]!==undefined){ matched=piece; mlen=j-i; break; }
     }
     if(matched){ out.push(matched); i+=mlen; continue; }
+    // 未知語は「まとめてそのまま」扱いにする（可読性優先）
     const m = s.slice(i).match(/^([ぁ-んァ-ヶｦ-ﾟー一-龯々〆ヵヶ]+|[A-Za-z]+|[0-9]+)/);
     if(m){ out.push(m[1]); i+=m[1].length; }
     else { out.push(s[i]); i++; }
@@ -64,8 +62,9 @@ function tokenizeByDictMaxMatch(s){
   return out;
 }
 
-// 未知語は学習 → 初回でも必ずずらす
+// 未知語学習（オプション）
 function learnUnknownTokens(tokens){
+  if(!learnToggle.checked) return 0;
   let added=0;
   for(const tok of tokens){
     const key = nkfc(tok);
@@ -79,50 +78,36 @@ function learnUnknownTokens(tokens){
   return added;
 }
 
-// シフト（+/-K 共通実装）
+// シフト
 function shift(text,k){
-  if(!ready){ show('辞書未準備'); return text; }
+  if(!ready) return text;
   const toks = tokenizeByDictMaxMatch(text);
   const added = learnUnknownTokens(toks.filter(t=>!/\s/.test(t)));
   const n = dict.length;
   const km = ((k%n)+n)%n;
   let hit=0;
   const out = toks.map(tok=>{
-    if(/\s/.test(tok)) return tok;
+    if(/\s/.test(tok)) return tok;        // 空白などはそのまま
     const id = indexObj[nkfc(tok)];
     if(id!==undefined){ hit++; return dictRaw[(id+km)%n]; }
-    return tok;
+    return tok;                            // 未知語はそのまま（既定）
   }).join('');
-  stat.textContent = `match ${hit}/${toks.length} tokens | dict=${n}（+${added} learned）`;
+  stat.textContent = `match ${hit}/${toks.length} tokens | dict=${n}${learnToggle.checked?'' : ' | 未知語はそのまま'}`;
   return out;
 }
 function shiftReverse(text,k){ return shift(text,-k); }
 
 // UI
 document.getElementById('shiftBtn').addEventListener('click',()=>{
-  try{
-    const k = parseInt(keyEl.value,10)||0;
-    dstEl.value = shift(srcEl.value||'', k);
-    if(!dstEl.value) show('出力なし：入力または辞書を確認');
-  }catch(e){
-    console.error(e); show('エラー：詳細はコンソール');
-  }
+  const k = parseInt(keyEl.value,10)||0;
+  dstEl.value = shift(srcEl.value||'', k);
 });
 document.getElementById('revBtn').addEventListener('click',()=>{
-  try{
-    const k = parseInt(keyEl.value,10)||0;
-    dstEl.value = shiftReverse(srcEl.value||'', k);
-    if(!dstEl.value) show('出力なし：入力または辞書を確認');
-  }catch(e){
-    console.error(e); show('エラー：詳細はコンソール');
-  }
+  const k = parseInt(keyEl.value,10)||0;
+  dstEl.value = shiftReverse(srcEl.value||'', k);
 });
-document.getElementById('sampleBtn').addEventListener('click',()=>{
+document.getElementById('sampleBtn')?.addEventListener('click',()=>{
   srcEl.value = '私は喫茶店でコーヒーを飲みながら新聞を読んだ。合歓木の　在りて終日　三途にて。';
-  show('サンプル読み込み');
-});
-document.getElementById('copyBtn').addEventListener('click',async()=>{
-  try{ await navigator.clipboard.writeText(dstEl.value||''); show('コピーしました'); }catch{ show('コピー失敗'); }
 });
 
 // PWA

@@ -1,5 +1,5 @@
 
-const CACHE = 'oulipo-cache-v2.4.2-embedded-b64-noworker';
+const CACHE = 'oulipo-cache-v2.4.3-embedded-b64-noworker-nolearn-default';
 self.addEventListener('install', e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./','./index.html','./script.js','./manifest.json'])));
 });
