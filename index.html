@@ -2,32 +2,49 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Oulipo〈S＋7〉 PWA</title>
-  <meta name="theme-color" content="#111111" />
-  <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="assets/icon-192.png" />
-  <link rel="apple-touch-icon" href="assets/icon-192.png" />
-  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Oulipo〈S+7〉 PWA (Mobile)</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#111">
+  <style>
+    body{margin:0;font:16px/1.6 system-ui;background:#fff;color:#111}
+    header{display:flex;gap:.5rem;align-items:center;padding:12px 16px;border-bottom:1px solid #eee}
+    h1{font-size:18px;margin:0}
+    .badge{margin-left:auto;background:#000;color:#fff;border-radius:999px;padding:4px 10px;font-size:12px;opacity:.9}
+    main{max-width:900px;margin:0 auto;padding:16px}
+    .row{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+    input[type=number]{width:120px;padding:8px;border:1px solid #ccc;border-radius:8px}
+    button{padding:8px 12px;border:1px solid #ccc;border-radius:10px;background:#fff}
+    textarea{width:100%;min-height:260px;border:1px solid #ddd;border-radius:12px;padding:12px}
+    .panes{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media (max-width:800px){.panes{grid-template-columns:1fr}}
+    footer{padding:12px 16px;color:#666;border-top:1px solid #eee;text-align:center}
+  </style>
+  <script defer src="script.js"></script>
 </head>
 <body>
   <header>
-    <h1>Oulipo〈S＋7〉</h1>
+    <h1>Oulipo〈S+7〉</h1>
     <span id="status" class="badge">辞書読み込み：—</span>
   </header>
   <main>
     <div class="row">
-      <label>鍵 K（+で暗号、−で復号）</label>
-      <input id="key" type="number" inputmode="numeric" value="7" />
+      <label>鍵 K（+で暗号 / −で復号）</label>
+      <input id="key" type="number" inputmode="numeric" value="7">
       <button id="encBtn">Encrypt（+K）</button>
       <button id="decBtn">Decrypt（-K）</button>
     </div>
     <section class="panes">
-      <div><label for="src">原文</label><textarea id="src" placeholder="ここに原文を貼り付け…"></textarea></div>
-      <div><label for="dst">結果</label><textarea id="dst" readonly></textarea></div>
+      <div>
+        <label for="src">原文</label>
+        <textarea id="src" placeholder="ここに原文を入力…"></textarea>
+      </div>
+      <div>
+        <label for="dst">結果</label>
+        <textarea id="dst" readonly></textarea>
+      </div>
     </section>
   </main>
-  <footer><small>Oulipo〈S＋7〉 PWA v1</small></footer>
-  <script type="module" src="script.js"></script>
+  <footer><small>v1.2-mobile（embedded dict / mobile-safe tokenizer）</small></footer>
 </body>
 </html>
