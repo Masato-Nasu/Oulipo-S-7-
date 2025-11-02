@@ -1,2 +1,1 @@
-self.addEventListener('install',e=>{e.waitUntil(caches.open('oulipo14').then(c=>c.addAll(['./','./index.html','./script.js'])))});
-self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)))});
+self.addEventListener('fetch',()=>{});
