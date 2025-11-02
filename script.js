@@ -1,5 +1,5 @@
 (()=>{
-const src=document.getElementById('src'),dst=document.getElementById('dst'),key=document.getElementById('key');
+const keyEl=document.getElementById('key'),srcEl=document.getElementById('src'),dstEl=document.getElementById('dst'),btn=document.getElementById('shiftBtn');
 const DICT_TEXT=`私
 喫茶店
 で
@@ -21,13 +21,12 @@ const DICT_TEXT=`私
 金銀
 を
 よらわれけり`;
-let dict=DICT_TEXT.split(/\r?\n/).filter(Boolean);
-function normalize(s){try{return s.normalize('NFKC')}catch{return s}}
-function mapDict(k){let n=dict.length,f=new Map(),r=new Map();for(let i=0;i<n;i++){let j=(i+k+n)%n;f.set(dict[i],dict[j]);r.set(dict[j],dict[i])}return{f,r}}
-function shift(text,k,dir){const{f,r}=mapDict(k);const m=dir==='enc'?f:r;return text.split(/(\s+)/).map(t=>m.get(normalize(t))||t).join('')}
-function buildHeader(k){return `<<<S+K v1.3;k=${k}>>>`}
-function parseHeader(t){const m=t.match(/^<<<S\+K v1\.3;k=([+-]?\d+)>>>/);return m?{k:parseInt(m[1]),body:t.slice(m[0].length)}:null}
-document.getElementById('encBtn').onclick=()=>{let k=parseInt(key.value)||0;dst.textContent=buildHeader(k)+"\n"+shift(src.value,k,'enc')}
-document.getElementById('decBtn').onclick=()=>{let t=src.value,m=parseHeader(t),k=-(parseInt(key.value)||0),body=t;if(m){k=-m.k;body=m.body}dst.textContent=shift(body,k,'dec')}
+let dictRaw=[],dict=[],seen=new Set();
+const nkfc=s=>{try{return s.normalize('NFKC')}catch{return s}};
+for(const line of DICT_TEXT.split(/\r?\n/)){const w=(line||'').trim();if(!w)continue;const n=nkfc(w);if(seen.has(n))continue;seen.add(n);dictRaw.push(w);dict.push(n);}
+function buildMap(k){const n=dict.length;if(!n)return new Map();const km=((k%n)+n)%n;const m=new Map();for(let i=0;i<n;i++){let j=(i+km)%n;m.set(dict[i],dictRaw[j])}return m}
+function tokenize(s){return s.match(/([A-Za-z]+|[0-9]+|[ぁ-んァ-ヶｦ-ﾟー゛゜ー]+|[一-龯々〆ヵヶー]+|[\u2000-\u206F\u2E00-\u2E7F\u3000-\u303F\uff00-\uffef]+|\s+)/g)||[s]}
+function shiftOnce(t,k){if(!dict.length)return t;const map=buildMap(k);return tokenize(t).map(tok=>map.get(nkfc(tok))??tok).join('')}
+btn.addEventListener('click',()=>{const k=parseInt(keyEl.value,10)||0;dstEl.value=shiftOnce(srcEl.value||'',k)});
 if('serviceWorker' in navigator)navigator.serviceWorker.register('serviceWorker.js');
 })();
