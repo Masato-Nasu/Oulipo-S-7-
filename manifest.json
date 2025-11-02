@@ -1,8 +1,8 @@
 {
-  "name": "Oulipo〈S+K〉 読める無意味PWA",
-  "short_name": "S+K-Oulipo",
-  "display": "standalone",
+  "name": "Oulipo〈S+K〉",
+  "short_name": "Oulipo",
   "start_url": "./",
+  "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#000000",
   "icons": [
