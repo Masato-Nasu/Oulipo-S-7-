@@ -3,50 +3,60 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Oulipo〈S+K〉 — 語彙総辞書モード v2.0-lexloader-ipa-ready</title>
+<title>Oulipo〈S+K〉 — 即動作 + 巨大辞書ローダー v2.2-mobile+lexloader</title>
 <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
 <style>
-  :root { --fg:#111; --muted:#666; --line:#e9e9e9; }
-  body { margin:0; font:16px/1.6 system-ui; color:var(--fg); background:#fff; }
-  header { display:flex; align-items:center; gap:.5rem; padding:10px 12px; border-bottom:1px solid var(--line); }
-  h1 { font-size:16px; margin:0; }
-  .badge { margin-left:auto; background:#000; color:#fff; border-radius:999px; padding:4px 10px; font-size:12px; opacity:.9 }
-  main { max-width:980px; margin:0 auto; padding:12px; }
-  .row { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
-  textarea { width:100%; min-height:220px; border:1px solid var(--line); border-radius:8px; padding:10px; }
-  button, input[type="number"] { padding:8px 10px; border:1px solid var(--line); border-radius:10px; background:#fff; }
-  .muted { color:var(--muted); font-size:12px; }
-  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-  .bar { margin:10px 0; border-top:1px dashed var(--line); }
+  :root { --fg:#111; --muted:#666; --line:#e9e9e9; --bg:#fff; --acc:#000; }
+  * { box-sizing:border-box }
+  html,body { height:100% }
+  body { margin:0; font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; color:var(--fg); background:var(--bg) }
+  header { display:flex; align-items:center; gap:.5rem; padding:10px 12px; border-bottom:1px solid var(--line); position:sticky; top:0; background:#fff; z-index:10 }
+  h1 { font-size:16px; margin:0 }
+  .badge { margin-left:auto; background:var(--acc); color:#fff; border-radius:999px; padding:4px 10px; font-size:12px; opacity:.9 }
+  main { max-width:960px; margin:0 auto; padding:12px }
+  .row { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; margin:8px 0 }
+  textarea { width:100%; min-height:200px; border:1px solid var(--line); border-radius:10px; padding:10px }
+  button, input[type=number] { padding:8px 12px; border:1px solid var(--line); border-radius:10px; background:#fff }
+  .muted { color:var(--muted); font-size:12px }
+  .mono { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace }
+  .grid { display:grid; grid-template-columns:1fr; gap:8px }
+  @media (min-width:720px) { .grid { grid-template-columns:1fr 1fr } }
+  .btn-primary { background:#000; color:#fff; border-color:#000 }
 </style>
-<script defer src="script.js?t=1762090180"></script>
+<script defer src="script.js?t=1762091359"></script>
 </head>
 <body>
 <header>
-  <h1>Oulipo〈S+K〉 — 語彙総辞書モード</h1>
-  <span id="badge" class="badge">v2.0-lexloader-ipa-ready</span>
+  <h1>Oulipo〈S+K〉 — 即動作 + 巨大辞書ローダー</h1>
+  <span id="badge" class="badge">v2.2-mobile+lexloader</span>
 </header>
 <main>
   <div class="row">
     <label>K（ずらし量）: <input id="key" type="number" value="7" style="width:90px"></label>
-    <button id="shiftBtn">語彙ずらし（+K）</button>
-    <button id="sampleBtn">サンプル入力</button>
+    <button id="shiftBtn" class="btn-primary">語彙ずらし（+K）</button>
+    <button id="revBtn">逆変換（-K）</button>
+    <button id="sampleBtn">サンプル</button>
+    <button id="copyBtn">結果をコピー</button>
     <span id="stat" class="muted mono" style="margin-left:auto;">init</span>
   </div>
 
-  <div class="row" style="margin:8px 0;">
-    <input id="dictFile" type="file" accept=".txt,.csv,.gz" />
-    <button id="loadBtn">辞書を読み込む（ローカル）</button>
-    <span class="muted">※ IPA辞書 / UniDic 等の「1行1語」テキスト または .gz 圧縮を指定可</span>
+  <div class="row">
+    <input id="dictFile" type="file" accept=".txt,.csv,.gz"/>
+    <button id="loadBtn">巨大辞書を読み込む（ローカル）</button>
+    <span class="muted">※ 1行1語の txt / gzip(.gz) に対応。読み込み後はワーカーで高速インデックス化。</span>
   </div>
 
-  <div class="bar"></div>
-
-  <label>原文</label>
-  <textarea id="src" placeholder="ここに原文を入力…"></textarea>
-
-  <label>結果</label>
-  <textarea id="dst" readonly></textarea>
+  <div class="grid">
+    <div>
+      <label>原文</label>
+      <textarea id="src" placeholder="ここに原文を貼り付けて『語彙ずらし』を押してください。"></textarea>
+    </div>
+    <div>
+      <label>結果</label>
+      <textarea id="dst" readonly></textarea>
+    </div>
+  </div>
 </main>
 </body>
 </html>
