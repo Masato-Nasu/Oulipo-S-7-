@@ -1,5 +1,4 @@
 
-// worker.js — build dictionary index off-thread
 self.onmessage = async (ev)=>{
   const {cmd, payload} = ev.data||{};
   if(cmd!=='build') return;

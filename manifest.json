@@ -1,5 +1,5 @@
 {
-  "name": "Oulipo S+K — Mobile + LexLoader",
+  "name": "Oulipo S+K — Single-File Dict PWA",
   "short_name": "Oulipo",
   "start_url": "./",
   "display": "standalone",

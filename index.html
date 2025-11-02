@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Oulipo〈S+K〉 — 即動作 + 巨大辞書ローダー v2.2-mobile+lexloader</title>
+<title>Oulipo〈S+K〉 — 完全単体PWA v2.4-embedded-inline</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#000000">
 <style>
@@ -24,12 +24,12 @@
   @media (min-width:720px) { .grid { grid-template-columns:1fr 1fr } }
   .btn-primary { background:#000; color:#fff; border-color:#000 }
 </style>
-<script defer src="script.js?t=1762091359"></script>
+<script defer src="script.js?t=1762092746"></script>
 </head>
 <body>
 <header>
-  <h1>Oulipo〈S+K〉 — 即動作 + 巨大辞書ローダー</h1>
-  <span id="badge" class="badge">v2.2-mobile+lexloader</span>
+  <h1>Oulipo〈S+K〉 — 完全単体PWA</h1>
+  <span id="badge" class="badge">v2.4-embedded-inline</span>
 </header>
 <main>
   <div class="row">
@@ -39,12 +39,6 @@
     <button id="sampleBtn">サンプル</button>
     <button id="copyBtn">結果をコピー</button>
     <span id="stat" class="muted mono" style="margin-left:auto;">init</span>
-  </div>
-
-  <div class="row">
-    <input id="dictFile" type="file" accept=".txt,.csv,.gz"/>
-    <button id="loadBtn">巨大辞書を読み込む（ローカル）</button>
-    <span class="muted">※ 1行1語の txt / gzip(.gz) に対応。読み込み後はワーカーで高速インデックス化。</span>
   </div>
 
   <div class="grid">
